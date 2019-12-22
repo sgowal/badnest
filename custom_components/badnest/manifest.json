@@ -1,10 +1,10 @@
 {
   "domain": "badnest",
   "name": "Bad Nest (A hack around the Nest component to pull from their internal api)",
-  "documentation": "https://custom-components.github.io/badnest",
+  "documentation": "https://github.com/sgowal/badnest",
   "dependencies": [],
   "codeowners": [
-    "@USA-RedDragon"
+    "@sgowal"
   ],
   "homeassistant": "0.97.0",
   "requirements": []

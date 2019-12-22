@@ -88,7 +88,7 @@ class NestCamera(Camera):
 
     def update(self):
         """Cache value from Python-nest."""
-        self._device.update()
+        self._device.update_camera(self._uuid)
 
     @property
     def name(self):
