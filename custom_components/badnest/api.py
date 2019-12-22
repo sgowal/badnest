@@ -109,7 +109,7 @@ class NestAPI():
         self._access_token = r.json()['jwt']
 
     def _login_dropcam(self):
-        self._session.post(
+        r = self._session.post(
             f"{API_URL}/dropcam/api/login",
             data={"access_token": self._access_token}
         )
@@ -469,13 +469,13 @@ class NestAPI():
         if device_id not in self.cameras:
             return
 
-        return self._set_properties(device_id, "streaming.enabled", "false")
+        return self._camera_set_properties(device_id, "streaming.enabled", "false")
 
     def camera_turn_on(self, device_id):
         if device_id not in self.cameras:
             return
 
-        return self._set_properties(device_id, "streaming.enabled", "true")
+        return self._camera_set_properties(device_id, "streaming.enabled", "true")
 
     def camera_get_image(self, device_id, now):
         if device_id not in self.cameras:
