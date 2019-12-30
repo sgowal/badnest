@@ -1,10 +1,11 @@
+from datetime import datetime
 import logging
 import requests
 import threading
 
-from camera import Camera
-from smoke_alarm import SmokeAlarm
-from thermostat import Thermostat
+from nest_camera import Camera
+from nest_smoke_alarm import SmokeAlarm
+from nest_thermostat import Thermostat
 
 _USER_AGENT = ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) '
                'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -14,6 +15,7 @@ _URL_JWT = "https://nestauthproxyservice-pa.googleapis.com/v1/issue_jwt"
 _NEST_API_ROOT_URL = 'https://home.nest.com'
 _CAMERA_API_ROOT_URL = 'https://webapi.camera.home.nest.com'
 _NEST_API_KEY = 'AIzaSyAdkSIMNc51XGNEAYWasX9UOWkS5P6sZE4'
+_TIME_BETWEEN_UPDATE = 60
 
 
 class Nest(object):
@@ -26,6 +28,10 @@ class Nest(object):
     self._access_token = None  # Populated after login.
 
     self._request_lock = threading.Lock()
+    self._devices = None
+
+    self._update_lock = threading.Lock()
+    self._last_update = None
 
   def _fetch_and_verify(self, url, headers, data=None, json=None, params=None, use_get=True, ignore_status_code=()):
     try:
@@ -88,9 +94,6 @@ class Nest(object):
 
   @property
   def _status_url(self):
-    # Example for a7a2f240-dcfd-11e7-a52b-0e022d5d9204:
-    # https://home.nest.com/api/0.1/structure/a7a2f240-dcfd-11e7-a52b-0e022d5d9204/members
-    # https://home.nest.com/api/0.1/structure/a7a2f240-dcfd-11e7-a52b-0e022d5d9204/entitlements
     if self._user_id is None:
       raise RuntimeError('Not logged in.')
     return '{}/api/0.1/user/{}/app_launch'.format(_NEST_API_ROOT_URL, self._user_id)
@@ -116,7 +119,7 @@ class Nest(object):
     response = self._fetch_and_verify(
         url=self._status_url,
         json={
-            'known_bucket_types': ['where', 'device', 'shared', 'topaz', 'kryptonite'],
+            'known_bucket_types': ['where', 'device', 'shared', 'topaz'],
             'known_bucket_versions': [],
         },
         headers=self._authorization_headers,
@@ -181,7 +184,73 @@ class Nest(object):
       device.update_from_json(values)
       devices.append(device)
 
+    self._devices = devices
+    self._logging.info('Devices listed and updated.')
     return devices
+
+  def update(self, reload_devices=False):
+    now = datetime.now().timestamp()
+    self._update_lock.acquire()
+    if not reload_devices and self._last_update is not None and now - self._last_update < _TIME_BETWEEN_UPDATE:
+      self._update_lock.release()
+      self._logging.info('Devices updated (from cache).')
+      return
+    self._last_update = now
+    self._update_lock.release()
+
+    if self._devices is None or reload_devices:
+      self.list_devices()
+      return
+
+    response = self._fetch_and_verify(
+        url=self._status_url,
+        json={
+            'known_bucket_types': ['device', 'shared', 'topaz'],
+            'known_bucket_versions': [],
+        },
+        headers=self._authorization_headers,
+        use_get=False)
+    if not response:
+      self._logging.error('Unable to update devices.')
+      return False
+
+    devices = dict((d.unique_id, d) for d in self._devices)
+    for bucket in response['updated_buckets']:
+      if bucket['object_key'].startswith('shared'):
+        serial_number = bucket['object_key'].split('.', 1)[1]
+        values = bucket['value']
+        # Thermostats are split in two buckets.
+        for bucket2 in response['updated_buckets']:
+          if bucket2['object_key'] == 'device.' + serial_number:
+            values.update(bucket2['value'])
+            break
+      elif bucket['object_key'].startswith('topaz'):
+        serial_number = bucket['object_key'].split('.', 1)[1]
+        values = bucket['value']
+      else:
+        continue
+      if serial_number not in devices:
+        self._logging.warn('New devices found (but not updated, restart is needed).')
+        continue
+      devices[serial_number].update_from_json(values)
+
+    # Cameras are handled separately.
+    response = self._fetch_and_verify(
+        url='{}/api/cameras.get_owned_and_member_of_with_properties'.format(_CAMERA_API_ROOT_URL),
+        headers=self._camera_authorization_headers,
+        use_get=True)
+    if not response:
+      self._logging.error('Unable to update cameras.')
+      return False
+    for values in response['items']:
+      serial_number = values['uuid']
+      if serial_number not in devices:
+        self._logging.warn('New devices found (but not updated, restart is needed).')
+        continue
+      devices[serial_number].update_from_json(values)
+
+    self._logging.info('Devices updated.')
+    return True
 
 
 if __name__ == '__main__':
@@ -195,7 +264,10 @@ if __name__ == '__main__':
   nest = Nest()
   nest.login(secret.ISSUE_TOKEN, secret.COOKIE)
   devices = nest.list_devices()
+  print(devices)
 
-  c = devices[-1]
-  print(c.get_image())
-  # print(devices)
+  nest.update()
+  print(devices)
+
+  nest.update()
+  print(devices)

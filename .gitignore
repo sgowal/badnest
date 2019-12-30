@@ -1,3 +1,6 @@
+secret.py
+example_response.*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
