@@ -1,7 +1,7 @@
 from .nest import Nest
 
 
-class NestAPI():
+class NestAPI(object):
 
   def __init__(self, issue_token, cookie):
     self._api = Nest()
