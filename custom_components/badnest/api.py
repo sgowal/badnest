@@ -1,10 +1,10 @@
-import nest
+from .nest import Nest
 
 
 class NestAPI():
 
   def __init__(self, issue_token, cookie):
-    self._api = nest.Nest()
+    self._api = Nest()
     self._api.login(issue_token, cookie)
     self._devices = self._api.list_devices()
 
