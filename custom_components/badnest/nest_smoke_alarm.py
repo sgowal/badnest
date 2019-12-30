@@ -1,6 +1,9 @@
 from enum import Enum
 
-from nest_device import Device
+if __package__:
+  from .nest_device import Device
+else:
+  from nest_device import Device
 
 
 class SmokeAlarmState(Enum):

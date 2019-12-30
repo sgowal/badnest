@@ -1,7 +1,10 @@
 from datetime import datetime
 import threading
 
-from nest_device import Device
+if __package__:
+  from .nest_device import Device
+else:
+  from nest_device import Device
 
 _TIME_BETWEEN_IMAGES = 10  # in seconds.
 
