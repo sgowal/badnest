@@ -2,10 +2,10 @@ import logging
 
 from homeassistant.helpers.entity import Entity
 
-from const import DOMAIN
-from nest_camera import Camera
-from nest_smoke_alarm import SmokeAlarm
-from nest_thermostat import Thermostat
+from .const import DOMAIN
+from .nest_camera import Camera
+from .nest_smoke_alarm import SmokeAlarm
+from .nest_thermostat import Thermostat
 
 
 _SENSOR_TYPES = [
