@@ -15,6 +15,13 @@ _SENSOR_TYPES = [
     'battery_health_state',
 ]
 
+_SENSOR_TYPE_NAMES = {
+    'smoke_alarm_state': 'Smoke',
+    'heat_alarm_state': 'Heat',
+    'co_alarm_state': 'CO',
+    'battery_health_state': 'Battery',
+}
+
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
   api = hass.data[DOMAIN]['api']
@@ -39,7 +46,7 @@ class NestProtectSensor(Entity):
 
   @property
   def name(self):
-    return self._device.name + ' Protect ' + self._sensor_type
+    return self._device.name + ' ' + _SENSOR_TYPE_NAMES[self._sensor_type]
 
   @property
   def state(self):
