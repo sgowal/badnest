@@ -54,3 +54,6 @@ class NestProtectSensor(Entity):
 
   def update(self):
     self._device.update()
+
+  def icon(self):
+    return 'mdi:smoke-detector'
