@@ -9,10 +9,10 @@ from .nest_thermostat import Thermostat
 
 
 _SENSOR_TYPES = [
-    'smoke_alarm_state'
-    'heat_alarm_state'
-    'co_alarm_state'
-    'battery_health_state'
+    'smoke_alarm_state',
+    'heat_alarm_state',
+    'co_alarm_state',
+    'battery_health_state',
 ]
 
 
