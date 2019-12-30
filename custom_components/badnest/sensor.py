@@ -39,7 +39,7 @@ class NestProtectSensor(Entity):
 
   @property
   def name(self):
-    return self._device.name + ' ' + self._sensor_type
+    return self._device.name + ' Protect ' + self._sensor_type
 
   @property
   def state(self):
