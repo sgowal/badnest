@@ -35,4 +35,6 @@ class NestCameraSwitch(SwitchDevice):
 
   @property
   def icon(self):
-    return 'mdi:camcorder'
+    if self.is_on:
+      return 'mdi:camcorder'
+    return 'mdi:camcorder-off'
