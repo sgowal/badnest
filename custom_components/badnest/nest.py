@@ -121,77 +121,79 @@ class Nest(object):
     }
 
   def list_devices(self):
-    response = self._fetch_and_verify(
-        url=self._status_url,
-        json={
-            'known_bucket_types': ['where', 'device', 'shared', 'topaz'],
-            'known_bucket_versions': [],
-        },
-        headers=self._authorization_headers,
-        use_get=False)
-    if not response:
-      self._logging.error('Unable to list devices.')
-      return []
+    with self._update_lock:
+      response = self._fetch_and_verify(
+          url=self._status_url,
+          json={
+              'known_bucket_types': ['where', 'device', 'shared', 'topaz'],
+              'known_bucket_versions': [],
+          },
+          headers=self._authorization_headers,
+          use_get=False)
+      if not response:
+        self._logging.error('Unable to list devices.')
+        return []
 
-    # Get location names.
-    rooms = {}
-    for bucket in response['updated_buckets']:
-      if not bucket['object_key'].startswith('where'):
-        continue
-      for room in bucket['value']['wheres']:
-        rooms[room['where_id']] = room['name']
+      # Get location names.
+      rooms = {}
+      for bucket in response['updated_buckets']:
+        if not bucket['object_key'].startswith('where'):
+          continue
+        for room in bucket['value']['wheres']:
+          rooms[room['where_id']] = room['name']
 
-    # Create all devices.
-    thermostats_url = response['service_urls']['urls']['czfe_url']
-    devices = []
-    for bucket in response['updated_buckets']:
-      if bucket['object_key'].startswith('shared'):
-        serial_number = bucket['object_key'].split('.', 1)[1]
-        values = bucket['value']
-        # Thermostats are split in two buckets.
-        for bucket2 in response['updated_buckets']:
-          if bucket2['object_key'] == 'device.' + serial_number:
-            values.update(bucket2['value'])
-            break
-        name = rooms[values['where_id']]
-        description = values.get('description', None)
-        if description:
-           name += ' ({})'.format(description)
-        device = Thermostat(serial_number, name, self, thermostats_url)
+      # Create all devices.
+      thermostats_url = response['service_urls']['urls']['czfe_url']
+      devices = []
+      for bucket in response['updated_buckets']:
+        if bucket['object_key'].startswith('shared'):
+          serial_number = bucket['object_key'].split('.', 1)[1]
+          values = bucket['value']
+          # Thermostats are split in two buckets.
+          for bucket2 in response['updated_buckets']:
+            if bucket2['object_key'] == 'device.' + serial_number:
+              values.update(bucket2['value'])
+              break
+          name = rooms[values['where_id']]
+          description = values.get('description', None)
+          if description:
+             name += ' ({})'.format(description)
+          device = Thermostat(serial_number, name, self, thermostats_url)
+          device.update_from_json(values)
+          devices.append(device)
+
+        elif bucket['object_key'].startswith('topaz'):
+          serial_number = bucket['object_key'].split('.', 1)[1]
+          values = bucket['value']
+          name = rooms[values['where_id']]
+          description = values.get('description', None)
+          if description:
+             name += ' ({})'.format(description)
+          device = SmokeAlarm(serial_number, name, self)
+          device.update_from_json(values)
+          devices.append(device)
+
+      # Cameras are handled separately.
+      response = self._fetch_and_verify(
+          url='{}/api/cameras.get_owned_and_member_of_with_properties'.format(_CAMERA_API_ROOT_URL),
+          headers=self._camera_authorization_headers,
+          use_get=True)
+      if not response:
+        self._logging.error('Unable to find cameras.')
+        return devices
+      for values in response['items']:
+        serial_number = values['uuid']
+        name = values['name']
+        image_url = 'https://' + values['nexus_api_nest_domain_host']
+        property_url = '{}/api/dropcams.set_properties'.format(_CAMERA_API_ROOT_URL)
+        device = Camera(serial_number, name, self, property_url, image_url)
         device.update_from_json(values)
         devices.append(device)
 
-      elif bucket['object_key'].startswith('topaz'):
-        serial_number = bucket['object_key'].split('.', 1)[1]
-        values = bucket['value']
-        name = rooms[values['where_id']]
-        description = values.get('description', None)
-        if description:
-           name += ' ({})'.format(description)
-        device = SmokeAlarm(serial_number, name, self)
-        device.update_from_json(values)
-        devices.append(device)
-
-    # Cameras are handled separately.
-    response = self._fetch_and_verify(
-        url='{}/api/cameras.get_owned_and_member_of_with_properties'.format(_CAMERA_API_ROOT_URL),
-        headers=self._camera_authorization_headers,
-        use_get=True)
-    if not response:
-      self._logging.error('Unable to find cameras.')
+      self._devices = devices
+      self._logging.info('Devices listed and updated.')
+      self._last_update = datetime.now().timestamp()
       return devices
-    for values in response['items']:
-      serial_number = values['uuid']
-      name = values['name']
-      image_url = 'https://' + values['nexus_api_nest_domain_host']
-      property_url = '{}/api/dropcams.set_properties'.format(_CAMERA_API_ROOT_URL)
-      device = Camera(serial_number, name, self, property_url, image_url)
-      device.update_from_json(values)
-      devices.append(device)
-
-    self._devices = devices
-    self._logging.info('Devices listed and updated.')
-    return devices
 
   def update(self, reload_devices=False):
     now = datetime.now().timestamp()

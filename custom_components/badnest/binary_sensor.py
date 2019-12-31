@@ -1,6 +1,5 @@
 import logging
 
-from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.components.binary_sensor import (
     BinarySensorDevice,
     DEVICE_CLASS_BATTERY,
@@ -72,13 +71,13 @@ class NestProtectSensor(BinarySensorDevice):
   @property
   def is_on(self):
     if self._sensor_type == 'smoke_alarm_state':
-      return STATE_ON if self._device.smoke_alarm_state in (SmokeAlarmState.WARNING, SmokeAlarmState.EMERGENCY) else STATE_OFF
+      return self._device.smoke_alarm_state in (SmokeAlarmState.WARNING, SmokeAlarmState.EMERGENCY)
     elif self._sensor_type == 'heat_alarm_state':
-      return STATE_ON if self._device.heat_alarm_state in (HeatAlarmState.WARNING, HeatAlarmState.EMERGENCY) else STATE_OFF
+      return self._device.heat_alarm_state in (HeatAlarmState.WARNING, HeatAlarmState.EMERGENCY)
     elif self._sensor_type == 'co_alarm_state':
-      return STATE_ON if self._device.co_alarm_state in (COAlarmState.WARNING, COAlarmState.EMERGENCY) else STATE_OFF
+      return self._device.co_alarm_state in (COAlarmState.WARNING, COAlarmState.EMERGENCY)
     elif self._sensor_type == 'battery_health_state':
-      return STATE_ON if self._device.smoke_alarm_state == BatteryState.REPLACE else STATE_OFF
+      return self._device.smoke_alarm_state == BatteryState.REPLACE
     else:
       return None
 
