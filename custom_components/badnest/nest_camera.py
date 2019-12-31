@@ -17,6 +17,7 @@ class Camera(Device):
     self._property_url = property_url
 
     # Properties.
+    self._properties_lock = threading.Lock()
     self._is_online = None
     self._is_streaming = None
 
@@ -25,19 +26,22 @@ class Camera(Device):
     self._last_image = None
 
   def update_from_json(self, json):
-    self._is_online = json['is_online']
-    self._is_streaming = json['is_streaming']
+    with self._properties_lock:
+      self._is_online = json['is_online']
+      self._is_streaming = json['is_streaming']
 
   def __repr__(self):
     return 'Camera [{}, online={}, streaming={}]'.format(self.name, self.is_online, self.is_streaming)
 
   @property
   def is_online(self):
-    return self._is_online
+    with self._properties_lock:
+      return self._is_online
 
   @property
   def is_streaming(self):
-    return self._is_streaming
+    with self._properties_lock:
+      return self._is_streaming
 
   def _set(self, name, value):
     headers = self.camera_authorization_headers
@@ -47,10 +51,18 @@ class Camera(Device):
     return response is not None
 
   def turn_off(self):
-    return self._set('streaming.enabled', 'false')
+    with self._properties_lock:
+      if self._set('streaming.enabled', 'false'):
+        self._is_streaming = False
+        return True
+      return False
 
   def turn_on(self):
-    return self._set('streaming.enabled', 'true')
+    with self._properties_lock:
+      if self._set('streaming.enabled', 'true'):
+        self._is_streaming = True
+        return True
+      return False
 
   def get_image(self):
     with self._image_lock:
