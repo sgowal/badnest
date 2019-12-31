@@ -9,7 +9,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
   switches = []
   for device in api.devices:
     if isinstance(device, Camera):
-      api.logging.info('Adding Nest Camera: %s', str(device))
+      api.logging.info('Adding switch for Nest Camera: %s', str(device))
       switches.append(NestCameraSwitch(device))
   async_add_entities(switches)
 
@@ -20,8 +20,15 @@ class NestCameraSwitch(SwitchDevice):
     self._device = device
 
   @property
+  def unique_id(self):
+    return self._device.unique_id + '_camera_switch'
+
+  @property
   def name(self):
     return self._device.name + ' Camera Switch'
+
+  def update(self):
+    self._device.update()
 
   @property
   def is_on(self):
