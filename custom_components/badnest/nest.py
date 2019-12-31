@@ -195,19 +195,19 @@ class Nest(object):
       self._last_update = datetime.now().timestamp()
       return devices
 
-  def update(self, reload_devices=False):
+  def update(self):
     now = datetime.now().timestamp()
     self._update_lock.acquire()
-    if not reload_devices and self._last_update is not None and now - self._last_update < _TIME_BETWEEN_UPDATE:
+    if self._devices is None:
+      self._logging.error('Devices not yet listed (aborting).')
+      self._update_lock.release()
+      return False
+    if self._last_update is not None and now - self._last_update < _TIME_BETWEEN_UPDATE:
       self._update_lock.release()
       self._logging.info('Devices updated (from cache).')
-      return
+      return True
     self._last_update = now
     self._update_lock.release()
-
-    if self._devices is None or reload_devices:
-      self.list_devices()
-      return
 
     response = self._fetch_and_verify(
         url=self._status_url,
