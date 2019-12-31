@@ -20,6 +20,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 class NestCamera(Camera):
 
   def __init__(self, device):
+    super(self, NestCamera).__init__()
     self._device = device
 
   @property
