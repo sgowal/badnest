@@ -37,6 +37,7 @@ class Nest(object):
 
     self._update_lock = threading.Lock()
     self._last_update = None
+    self._last_update_ret = False
 
   def _fetch_and_verify(self, url, headers, data=None, json=None, params=None, use_get=True, ignore_status_code=()):
     try:
@@ -196,68 +197,68 @@ class Nest(object):
       return devices
 
   def update(self):
-    now = datetime.now().timestamp()
-    self._update_lock.acquire()
-    if self._devices is None:
-      self._logging.error('Devices not yet listed (aborting).')
-      self._update_lock.release()
-      return False
-    if self._last_update is not None and now - self._last_update < _TIME_BETWEEN_UPDATE:
-      self._update_lock.release()
-      self._logging.info('Devices updated (from cache).')
+    with self._update_lock:
+      now = datetime.now().timestamp()
+      if self._devices is None:
+        self._logging.error('Devices not yet listed (aborting).')
+        return False
+      if self._last_update is not None and now - self._last_update < _TIME_BETWEEN_UPDATE:
+        self._logging.info('Devices updated (from cache).')
+        return self._last_update_ret
+      self._last_update = now
+
+      response = self._fetch_and_verify(
+          url=self._status_url,
+          json={
+              'known_bucket_types': ['device', 'shared', 'topaz'],
+              'known_bucket_versions': [],
+          },
+          headers=self._authorization_headers,
+          use_get=False)
+      if not response:
+        self._logging.error('Unable to update devices.')
+        self._last_update_ret = False
+        return False
+
+      devices = dict((d.unique_id, d) for d in self._devices)
+      for bucket in response['updated_buckets']:
+        if bucket['object_key'].startswith('shared'):
+          serial_number = bucket['object_key'].split('.', 1)[1]
+          values = bucket['value']
+          # Thermostats are split in two buckets.
+          for bucket2 in response['updated_buckets']:
+            if bucket2['object_key'] == 'device.' + serial_number:
+              values.update(bucket2['value'])
+              break
+        elif bucket['object_key'].startswith('topaz'):
+          serial_number = bucket['object_key'].split('.', 1)[1]
+          values = bucket['value']
+        else:
+          continue
+        if serial_number not in devices:
+          self._logging.warn('New devices found (but not updated, restart is needed).')
+          continue
+        devices[serial_number].update_from_json(values)
+
+      # Cameras are handled separately.
+      response = self._fetch_and_verify(
+          url='{}/api/cameras.get_owned_and_member_of_with_properties'.format(_CAMERA_API_ROOT_URL),
+          headers=self._camera_authorization_headers,
+          use_get=True)
+      if not response:
+        self._logging.error('Unable to update cameras.')
+        self._last_update_ret = False
+        return False
+      for values in response['items']:
+        serial_number = values['uuid']
+        if serial_number not in devices:
+          self._logging.warn('New devices found (but not updated, restart is needed).')
+          continue
+        devices[serial_number].update_from_json(values)
+
+      self._logging.info('Devices updated.')
+      self._last_update_ret = True
       return True
-    self._last_update = now
-    self._update_lock.release()
-
-    response = self._fetch_and_verify(
-        url=self._status_url,
-        json={
-            'known_bucket_types': ['device', 'shared', 'topaz'],
-            'known_bucket_versions': [],
-        },
-        headers=self._authorization_headers,
-        use_get=False)
-    if not response:
-      self._logging.error('Unable to update devices.')
-      return False
-
-    devices = dict((d.unique_id, d) for d in self._devices)
-    for bucket in response['updated_buckets']:
-      if bucket['object_key'].startswith('shared'):
-        serial_number = bucket['object_key'].split('.', 1)[1]
-        values = bucket['value']
-        # Thermostats are split in two buckets.
-        for bucket2 in response['updated_buckets']:
-          if bucket2['object_key'] == 'device.' + serial_number:
-            values.update(bucket2['value'])
-            break
-      elif bucket['object_key'].startswith('topaz'):
-        serial_number = bucket['object_key'].split('.', 1)[1]
-        values = bucket['value']
-      else:
-        continue
-      if serial_number not in devices:
-        self._logging.warn('New devices found (but not updated, restart is needed).')
-        continue
-      devices[serial_number].update_from_json(values)
-
-    # Cameras are handled separately.
-    response = self._fetch_and_verify(
-        url='{}/api/cameras.get_owned_and_member_of_with_properties'.format(_CAMERA_API_ROOT_URL),
-        headers=self._camera_authorization_headers,
-        use_get=True)
-    if not response:
-      self._logging.error('Unable to update cameras.')
-      return False
-    for values in response['items']:
-      serial_number = values['uuid']
-      if serial_number not in devices:
-        self._logging.warn('New devices found (but not updated, restart is needed).')
-        continue
-      devices[serial_number].update_from_json(values)
-
-    self._logging.info('Devices updated.')
-    return True
 
 
 if __name__ == '__main__':

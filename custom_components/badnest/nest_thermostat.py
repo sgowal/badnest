@@ -68,7 +68,7 @@ class Thermostat(Device):
 
   def update_from_json(self, json):
     with self._properties_lock:
-      self._temperature_unit = json['temperature_scale']
+      self._temperature_unit = TemperatureUnit.C if json['temperature_scale'] == 'C' else TemperatureUnit.F
       self._current_temperature = json['current_temperature']
       self._current_humidity = json['current_humidity']
 

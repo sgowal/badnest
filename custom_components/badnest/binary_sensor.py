@@ -1,8 +1,7 @@
-import logging
-
 from homeassistant.components.binary_sensor import (
     BinarySensorDevice,
     DEVICE_CLASS_BATTERY,
+    DEVICE_CLASS_CONNECTIVITY,
     DEVICE_CLASS_GAS,
     DEVICE_CLASS_HEAT,
     DEVICE_CLASS_SMOKE,
@@ -42,13 +41,14 @@ _SENSOR_TYPES = {
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
   api = hass.data[DOMAIN]['api']
-  protect_sensors = []
+  sensors = []
   for device in api.devices:
     if isinstance(device, SmokeAlarm):
       api.logging.info('Adding Nest Protect sensor: %s', str(device))
       for sensor_type in _SENSOR_TYPES:
-        protect_sensors.append(NestProtectSensor(device, sensor_type))
-  async_add_entities(protect_sensors)
+        sensors.append(NestProtectSensor(device, sensor_type))
+  sensors.append(NestUpdateSensor(api))
+  async_add_entities(sensors)
 
 
 class NestProtectSensor(BinarySensorDevice):
@@ -84,3 +84,29 @@ class NestProtectSensor(BinarySensorDevice):
   @property
   def device_class(self):
     return _SENSOR_TYPES[self._sensor_type]
+
+
+class NestUpdateSensor(BinarySensorDevice):
+
+  def __init__(self, api):
+    self._api = api
+    self._value = True
+
+  @property
+  def unique_id(self):
+    return DOMAIN + '_update_success'
+
+  @property
+  def name(self):
+    return DOMAIN + ' Successful Update'
+
+  def update(self):
+    self._value = self._api.update()
+
+  @property
+  def is_on(self):
+    return self._value
+
+  @property
+  def device_class(self):
+    return DEVICE_CLASS_CONNECTIVITY
