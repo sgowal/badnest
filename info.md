@@ -1,61 +1,24 @@
 # badnest
 
-A bad Nest integration that uses the web api to work after Works with Nest was shut down (bad Google, go sit in your corner and think about what you did)
-
-## Why is it bad?
-
-This isn't an advertised or public API, it's still better than web scraping, but will never be as reliable as the original API
+Updated (completely rethought) fork of [badnest](https://github.com/USA-RedDragon/badnest).
+A Nest integration that uses the Nest Web API (after Works with Nest was shut down).
 
 ## Features
 
 - Doesn't use the now defunct Works with Nest API
 - Works with migrated/new accounts via Google auth
-- Works with old via Nest auth
 - Nest Protect support
 - Nest Thermostat support
-- Nest Thermostat Sensor support
 - Nest Camera support
-
-## Drawbacks
-
-- Won't work with 2FA enabled accounts (Works with 2fa Google Accounts)
-- Tested with a single thermostat, I have no other devices to test with
-- Camera integration is untested by me
-- Nest Protect integration is untested by me
-- Nest could change their webapp api at any time, making this defunct
 
 ## Configuration
 
-The camera's region is one of `us` or `eu` depending on your region.
-If you're not in the US or EU, you should be able to add your
-two-character country code, and it should work.
-
-### Example configuration.yaml - When you're not using the Google Auth Login
-
-```yaml
-badnest:
-  email: email@domain.com
-  password: !secret nest_password
-  region: us
-
-climate:
-  - platform: badnest
-    scan_interval: 10
-
-camera:
-  - platform: badnest
-
-sensor:
-  - platform: badnest
-```
-
-### Example configuration.yaml - When you are using the Google Auth Login
+### Example configuration.yaml
 
 ```yaml
 badnest:
   issue_token: "https://accounts.google.com/o/oauth2/iframerpc....."
   cookie: "OCAK=......"
-  region: us
 
 climate:
   - platform: badnest
@@ -66,9 +29,10 @@ camera:
 
 sensor:
   - platform: badnest
-```
 
-Google Login support added with many thanks to: chrisjshull from <https://github.com/chrisjshull/homebridge-nest/>
+switch:
+  - platform: badnest
+```
 
 The values of `"issue_token"` and `"cookie"` are specific to your Google Account. To get them, follow these steps (only needs to be done once, as long as you stay logged into your Google Account).
 
