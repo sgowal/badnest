@@ -20,7 +20,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 class NestCamera(Camera):
 
   def __init__(self, device):
-    super(self, NestCamera).__init__()
+    super(NestCamera, self).__init__()
     self._device = device
 
   @property
@@ -53,10 +53,6 @@ class NestCamera(Camera):
 
   @property
   def is_recording(self):
-    return self._device.is_streaming
-
-  @property
-  def is_streaming(self):
     return self._device.is_streaming
 
   def turn_off(self):
