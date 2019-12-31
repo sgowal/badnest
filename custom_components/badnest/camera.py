@@ -23,6 +23,10 @@ class NestCamera(Camera):
     self._device = device
 
   @property
+  def should_poll(self):
+    return True  # We force polling.
+
+  @property
   def device_info(self):
     return {
         'identifiers': {(DOMAIN, self._device.unique_id)},
@@ -48,6 +52,10 @@ class NestCamera(Camera):
 
   @property
   def is_recording(self):
+    return self._device.is_streaming
+
+  @property
+  def is_streaming(self):
     return self._device.is_streaming
 
   def turn_off(self):
