@@ -112,6 +112,7 @@ class NestClimate(ClimateDevice):
       features |= SUPPORT_FAN_MODE
     if HVACMode.AUTO in self._device.available_hvac_modes:
       features |= SUPPORT_TARGET_TEMPERATURE_RANGE
+    return features
 
   @property
   def temperature_unit(self):

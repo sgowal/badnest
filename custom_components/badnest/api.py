@@ -15,3 +15,6 @@ class NestAPI(object):
   @property
   def logging(self):
     return self._api._logging
+
+  def update(self):
+    return self._api.update()
