@@ -64,7 +64,7 @@ class NestProtectSensor(BinarySensorDevice):
 
   @property
   def name(self):
-    return self._device.name + ' ' + _SENSOR_TYPE_NAMES[self._sensor_type]
+    return self._device.name + ' Protect ' + _SENSOR_TYPE_NAMES[self._sensor_type]
 
   def update(self):
     self._device.update()
