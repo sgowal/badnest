@@ -7,6 +7,7 @@ class NestAPI(object):
     self._api = Nest()
     self._api.login(issue_token, cookie)
     self._devices = self._api.list_devices()
+    self._api._logging.warn('Devices: %s', str(self._devices))
 
   @property
   def devices(self):

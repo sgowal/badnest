@@ -29,6 +29,9 @@ class Nest(object):
     self._logging = logging.getLogger(__name__)
 
     self._session = requests.Session()
+    self._login_lock = threading.Lock()
+    self._issue_token = None  # Populated after login.
+    self._cookie = None  # Populated after login.
     self._user_id = None  # Populated after login.
     self._access_token = None  # Populated after login.
 
@@ -55,6 +58,11 @@ class Nest(object):
         return response.json()
       else:
         return response.content
+    if response.status_code == 401:
+      # Unauthorized access. Login.
+      self._logging.info('Access unauthorized. Logging in again.')
+      if not self.login():
+        return None
     if response.status_code not in ignore_status_code:
       self._logging.error('Invalid response status: %d (%s)', response.status_code, response.text)
     return None
@@ -87,39 +95,53 @@ class Nest(object):
     }
     return self._fetch_and_verify(url=_URL_JWT, headers=headers, params=params, use_get=False)
 
-  def login(self, issue_token, cookie):
-    access_token = self._get_login_access_token(issue_token, cookie)
-    info = self._get_login_information(access_token)
-    if not info:
-      self._logging.warning('Login failed.')
-      return False
-    self._user_id = info['claims']['subject']['nestId']['id']
-    self._access_token = info['jwt']
-    self._logging.info('Login successful.')
-    return True
+  def login(self, issue_token=None, cookie=None):
+    with self._login_lock:
+      if issue_token is None or cookie is None:
+        if self._issue_token is None or self._cookie is None:
+          raise RuntimeError('Login never attempted with valid credentials.')
+        issue_token = self._issue_token
+        cookie = self._cookie
+      else:
+        self._issue_token = issue_token
+        self._cookie = cookie
+      access_token = self._get_login_access_token(issue_token, cookie)
+      info = self._get_login_information(access_token)
+      if not info:
+        self._issue_token = None
+        self._cookie = None
+        self._logging.warning('Login failed.')
+        return False
+      self._user_id = info['claims']['subject']['nestId']['id']
+      self._access_token = info['jwt']
+      self._logging.info('Login successful.')
+      return True
 
   @property
   def _status_url(self):
-    if self._user_id is None:
-      raise RuntimeError('Not logged in.')
-    return '{}/api/0.1/user/{}/app_launch'.format(_NEST_API_ROOT_URL, self._user_id)
+    with self._login_lock:
+      if self._user_id is None:
+        raise RuntimeError('Not logged in.')
+      return '{}/api/0.1/user/{}/app_launch'.format(_NEST_API_ROOT_URL, self._user_id)
 
   @property
   def _authorization_headers(self):
-    if self._access_token is None:
-      raise RuntimeError('Not logged in.')
-    return {'Authorization': 'Basic {}'.format(self._access_token)}
+    with self._login_lock:
+      if self._access_token is None:
+        raise RuntimeError('Not logged in.')
+      return {'Authorization': 'Basic {}'.format(self._access_token)}
 
   @property
   def _camera_authorization_headers(self):
-    if self._access_token is None:
-      raise RuntimeError('Not logged in.')
-    return {
-        'User-Agent': _USER_AGENT,
-        'X-Requested-With': 'XmlHttpRequest',
-        'Referer': 'https://home.nest.com/',
-        'cookie': 'user_token={}'.format(self._access_token)
-    }
+    with self._login_lock:
+      if self._access_token is None:
+        raise RuntimeError('Not logged in.')
+      return {
+          'User-Agent': _USER_AGENT,
+          'X-Requested-With': 'XmlHttpRequest',
+          'Referer': 'https://home.nest.com/',
+          'cookie': 'user_token={}'.format(self._access_token)
+      }
 
   def list_devices(self):
     with self._update_lock:
