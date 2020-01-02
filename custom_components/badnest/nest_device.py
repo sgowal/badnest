@@ -33,4 +33,6 @@ class Device(object):
 
   def update(self):
     """Centralized update function."""
+    self.logging.warn('Updating "%s"', str(self.name))
     self._backend.update()
+    self.logging.warn('Done updating "%s"', str(self.name))

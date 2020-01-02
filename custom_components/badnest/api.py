@@ -5,9 +5,17 @@ class NestAPI(object):
 
   def __init__(self, issue_token, cookie):
     self._api = Nest()
-    self._api.login(issue_token, cookie)
+
+  def initial_login(self, issue_token, cookie):
+    # Try to logging a few times before giving up.
+    for _ in range(5):
+      if self._api.login(issue_token, cookie):
+        break
+    else:
+      return False
     self._devices = self._api.list_devices()
     self._api._logging.warn('Devices: %s', str(self._devices))
+    return True
 
   @property
   def devices(self):

@@ -48,10 +48,14 @@ class Nest(object):
     try:
       if use_get:
         with self._request_lock:
+          self._logging.warning('GET...')
           response = self._session.get(url=url, headers=headers, data=data, json=json, params=params)
+          self._logging.warning('GET done')
       else:
         with self._request_lock:
+          self._logging.warning('POST...')
           response = self._session.post(url=url, headers=headers, data=data, json=json, params=params)
+          self._logging.warning('POST done')
     except requests.exceptions.RequestException as e:
       self._logging.error('Invalid request: %s', str(e))
       return None
@@ -62,7 +66,7 @@ class Nest(object):
         return response.content
     if response.status_code == 401 and autologin:
       # Unauthorized access. Login.
-      self._logging.info('Access unauthorized. Logging in again.')
+      self._logging.warning('Access unauthorized. Logging in again.')
       if not self.login():
         self._logging.warning('Unable to auto-login.')
         return None
@@ -106,6 +110,7 @@ class Nest(object):
       now = datetime.now().timestamp()
       if self._last_successful_login is not None and now - self._last_successful_login < _TIME_BETWEEN_LOGIN:
         self._logging.info('Already logged in (skipping).')
+        self._logging.warning('Already logged in (skipping).')
         return True
 
       if issue_token is None or cookie is None:
@@ -126,6 +131,7 @@ class Nest(object):
       self._user_id = info['claims']['subject']['nestId']['id']
       self._access_token = info['jwt']
       self._logging.info('Login successful.')
+      self._logging.warning('Login successful.')
       self._last_successful_login = now
       return True
 
@@ -232,6 +238,7 @@ class Nest(object):
 
   def update(self):
     with self._update_lock:
+      self._logging.warning('Updating device...')
       now = datetime.now().timestamp()
       if self._devices is None:
         self._logging.error('Devices not yet listed (aborting).')

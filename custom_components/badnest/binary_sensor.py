@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from homeassistant.components.binary_sensor import (
     BinarySensorDevice,
     DEVICE_CLASS_BATTERY,
