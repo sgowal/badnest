@@ -41,7 +41,7 @@ def run(api, original_request, original_content, original_content_txt):
       headers=headers,
       stream=True)
 
-  for c in r.iter_content():
+  for c in r.iter_content(chunk_size=None):
     if not c:
       continue
     print(c)

@@ -3,7 +3,7 @@ from .nest import Nest
 
 class NestAPI(object):
 
-  def __init__(self, issue_token, cookie):
+  def __init__(self):
     self._api = Nest()
 
   def initial_login(self, issue_token, cookie):
