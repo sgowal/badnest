@@ -18,8 +18,8 @@ def setup(hass, config):
   if config.get(DOMAIN) is not None:
     issue_token = config[DOMAIN].get(CONF_ISSUE_TOKEN)
     cookie = config[DOMAIN].get(CONF_COOKIE)
-    api = NestAPI()
-    if not api.initial_login(issue_token, cookie):
+    api = NestAPI(issue_token, cookie)
+    if not api.initial_login():
       return False
     hass.data[DOMAIN] = {
         'api': api,

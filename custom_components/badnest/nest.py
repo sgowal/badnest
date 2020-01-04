@@ -26,14 +26,14 @@ _TIME_BETWEEN_LOGIN = 600
 
 class Nest(object):
 
-  def __init__(self):
+  def __init__(self, issue_token, cookie):
     self._logging = logging.getLogger(__name__)
 
     self._session = requests.Session()
     self._login_lock = threading.Lock()
     self._last_successful_login = None
-    self._issue_token = None  # Populated after login.
-    self._cookie = None  # Populated after login.
+    self._issue_token = issue_token
+    self._cookie = cookie
     self._user_id = None  # Populated after login.
     self._access_token = None  # Populated after login.
 
@@ -48,10 +48,10 @@ class Nest(object):
     try:
       if use_get:
         with self._request_lock:
-          response = self._session.get(url=url, headers=headers, data=data, json=json, params=params)
+          response = self._session.get(url=url, headers=headers, data=data, json=json, params=params, timeout=10)
       else:
         with self._request_lock:
-          response = self._session.post(url=url, headers=headers, data=data, json=json, params=params)
+          response = self._session.post(url=url, headers=headers, data=data, json=json, params=params, timeout=10)
     except requests.exceptions.RequestException as e:
       self._logging.error('Invalid request: %s', str(e))
       return None
@@ -60,16 +60,16 @@ class Nest(object):
         return response.json()
       else:
         return response.content
-    if response.status_code == 401 and autologin:
+    elif response.status_code == 401 and autologin:
       # Unauthorized access. Login.
       self._logging.warning('Access unauthorized. Logging in again.')
       if not self.login():
         self._logging.warning('Unable to auto-login.')
         return None
       # Try once again.
-      self._fetch_and_verify(url=url, headers=headers, data=data, json=json, params=params, use_get=use_get,
-                             ignore_status_code=ignore_status_code, autologin=False)
-    if response.status_code not in ignore_status_code:
+      return self._fetch_and_verify(url=url, headers=headers, data=data, json=json, params=params, use_get=use_get,
+                                    ignore_status_code=ignore_status_code, autologin=False)
+    elif response.status_code not in ignore_status_code:
       self._logging.error('Invalid response status: %d (%s)', response.status_code, response.text)
     return None
 
@@ -101,26 +101,19 @@ class Nest(object):
     }
     return self._fetch_and_verify(url=_URL_JWT, headers=headers, params=params, use_get=False, autologin=False)
 
-  def login(self, issue_token=None, cookie=None):
+  def login(self):
     with self._login_lock:
       now = datetime.now().timestamp()
       if self._last_successful_login is not None and now - self._last_successful_login < _TIME_BETWEEN_LOGIN:
         self._logging.info('Already logged in (skipping).')
         return True
 
-      if issue_token is None or cookie is None:
-        if self._issue_token is None or self._cookie is None:
-          raise RuntimeError('Login never attempted with valid credentials.')
-        issue_token = self._issue_token
-        cookie = self._cookie
-      else:
-        self._issue_token = issue_token
-        self._cookie = cookie
-      access_token = self._get_login_access_token(issue_token, cookie)
+      access_token = self._get_login_access_token(self._issue_token, self._cookie)
+      if not access_token:
+        self._logging.warning('Login failed (Unable to use Google login).')
+        return False
       info = self._get_login_information(access_token)
       if not info:
-        self._issue_token = None
-        self._cookie = None
         self._logging.warning('Login failed.')
         return False
       self._user_id = info['claims']['subject']['nestId']['id']
@@ -303,8 +296,8 @@ if __name__ == '__main__':
   secret = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(secret)
 
-  nest = Nest()
-  nest.login(secret.ISSUE_TOKEN, secret.COOKIE)
+  nest = Nest(secret.ISSUE_TOKEN, secret.COOKIE)
+  nest.login()
   devices = nest.list_devices()
   print(devices)
 

@@ -62,7 +62,7 @@ if __name__ == '__main__':
   spec.loader.exec_module(secret)
 
   from nest import Nest
-  nest = Nest()
-  nest.login(secret.ISSUE_TOKEN, secret.COOKIE)
+  nest = Nest(secret.ISSUE_TOKEN, secret.COOKIE)
+  nest.login()
 
   run(nest, original_request, original_content, original_content_txt)

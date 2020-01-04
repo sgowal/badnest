@@ -3,13 +3,13 @@ from .nest import Nest
 
 class NestAPI(object):
 
-  def __init__(self):
-    self._api = Nest()
+  def __init__(self, issue_token, cookie):
+    self._api = Nest(issue_token, cookie)
 
-  def initial_login(self, issue_token, cookie):
+  def initial_login(self):
     # Try to logging a few times before giving up.
     for _ in range(5):
-      if self._api.login(issue_token, cookie):
+      if self._api.login():
         break
     else:
       return False
