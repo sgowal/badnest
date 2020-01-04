@@ -14,7 +14,7 @@ class NestAPI(object):
     else:
       return False
     self._devices = self._api.list_devices()
-    self._api._logging.warn('Devices: %s', str(self._devices))
+    self._api._logging.info('Devices: %s', str(self._devices))
     return True
 
   @property
