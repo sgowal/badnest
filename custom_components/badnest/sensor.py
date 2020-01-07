@@ -63,7 +63,7 @@ class ThermostatSensor(Entity):
     if self._sensor_type == 'current_humidity':
       return '%'
     elif self._sensor_type == 'current_temperature':
-      TEMP_CELSIUS if self._device.temperature_unit == TemperatureUnit.C else TEMP_FAHRENHEIT
+      '°C' if self._device.temperature_unit == TemperatureUnit.C else '°F'
     else:
       return None
 
