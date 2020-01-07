@@ -49,7 +49,7 @@ class ThermostatSensor(Entity):
 
   @property
   def name(self):
-    return return self._device.name + ' Thermostat' + _SENSOR_TYPE_NAMES[self._sensor_type]
+    return self._device.name + ' Thermostat' + _SENSOR_TYPE_NAMES[self._sensor_type]
 
   def update(self):
     self._device.update()

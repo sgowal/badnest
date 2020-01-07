@@ -20,6 +20,9 @@ badnest:
   issue_token: "https://accounts.google.com/o/oauth2/iframerpc....."
   cookie: "OCAK=......"
 
+binary_sensor:
+  - platform: badnest
+
 climate:
   - platform: badnest
     scan_interval: 10
