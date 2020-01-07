@@ -18,14 +18,6 @@ from .nest_smoke_alarm import (
     BatteryState,
 )
 
-
-_SENSOR_TYPES = [
-    'smoke_alarm_state',
-    'heat_alarm_state',
-    'co_alarm_state',
-    'battery_health_state',
-]
-
 _SENSOR_TYPE_NAMES = {
     'smoke_alarm_state': 'Smoke',
     'heat_alarm_state': 'Heat',
