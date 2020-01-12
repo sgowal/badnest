@@ -1,16 +1,50 @@
 """API that streams the newer protocol buffers from Nest."""
+# Create all protos with:
+# > protoc --python_out . --proto_path proto proto/*.proto
+# > mv nest nest_proto
 
+import base64
 import uuid
 
-from proto.nest_gateway_pb2 import ObserveRequest
+from streambody_pb2 import StreamBody
+
+from nest_proto.gateway_pb2 import ObserveRequest
+from nest_proto.gateway_pb2 import ObserveResponse
+
+from nest_proto.hvac_pb2 import EcoModeTrait
+from nest_proto.hvac_pb2 import EcoModeSettingsTrait
+from nest_proto.hvac_pb2 import EcoModeStateTrait
+from nest_proto.hvac_pb2 import TargetTemperatureSettingsTrait
 
 
 _URL = 'https://grpc-web.production.nest.com/nestlabs.gateway.v2.GatewayService/Observe'
 
-_TRAITS = [
-    'nest.trait.hvac.EcoModeTrait',
-    'nest.trait.hvac.TargetTemperatureSettingsTrait',
-]
+_TRAITS = {
+    'nest.trait.hvac.EcoModeTrait': EcoModeTrait,
+    'nest.trait.hvac.EcoModeSettingsTrait': EcoModeSettingsTrait,
+    'nest.trait.hvac.EcoModeStateTrait': EcoModeStateTrait,
+    'nest.trait.hvac.TargetTemperatureSettingsTrait': TargetTemperatureSettingsTrait,
+}
+
+
+def process_trait(device, label, trait_type, byte_content):
+  print(device, label)
+  proto = _TRAITS[trait_type]()
+  proto.ParseFromString(byte_content)
+  print(proto)
+
+
+def process_response(message):
+  for trait_state in message.trait_states:
+    device = trait_state.trait_id.resource_id
+    label = trait_state.trait_id.trait_label
+    trait_type = trait_state.patch.values.type_url
+    byte_content = trait_state.patch.values.value
+
+    if not trait_type.startswith('type.nestlabs.com/'):
+      continue
+    trait_type = trait_type.split('/', 1)[1]
+    process_trait(device, label, trait_type, byte_content)
 
 
 def run(api, original_request, original_content, original_content_txt):
@@ -32,19 +66,23 @@ def run(api, original_request, original_content, original_content_txt):
   for trait_type in _TRAITS:
     params = request.trait_type_params.add()
     params.trait_type = trait_type
-  data = request.SerializeToString().decode()
-  print(''.join(map(lambda c: '\\x%02x' % ord(c), data)))
 
   r = api._session.post(
       _URL,
-      data=original_request.SerializeToString(),
+      data=request.SerializeToString(),
       headers=headers,
       stream=True)
 
   for c in r.iter_content(chunk_size=None):
     if not c:
       continue
-    print(c)
+    decoded_bytes = base64.standard_b64decode(c)
+    proto = StreamBody()
+    proto.ParseFromString(decoded_bytes)
+    response = ObserveResponse()
+    for message in proto.message:
+      response.ParseFromString(message)
+      process_response(response)
 
 
 if __name__ == '__main__':
