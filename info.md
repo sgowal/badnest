@@ -25,13 +25,25 @@ binary_sensor:
 
 climate:
   - platform: badnest
-    scan_interval: 10
 
 camera:
   - platform: badnest
 
 sensor:
   - platform: badnest
+
+  # Changes to off if unable to update Nest sensors for 1 hour.
+  - platform: sql
+    queries:
+      - name: Nest Updated
+        column: 'value'
+        query: >
+            SELECT MAX(state) 'value'
+            FROM (
+                SELECT state
+                FROM states
+                WHERE entity_id = 'binary_sensor.badnest_successful_update'
+                AND created > datetime('now', '-1 hours'));
 
 switch:
   - platform: badnest
