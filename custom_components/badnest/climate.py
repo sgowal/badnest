@@ -27,6 +27,7 @@ from homeassistant.const import (
 from .const import DOMAIN
 from .nest import (
     Thermostat,
+    ThermostatE,
     HVACAction,
     HVACMode,
     FanMode,
@@ -83,7 +84,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
   api = hass.data[DOMAIN]['api']
   thermostats = []
   for device in api.devices:
-    if isinstance(device, Thermostat):
+    if isinstance(device, (Thermostat, ThermostatE)):
       api.logging.info('Adding Nest Thermostat: %s', str(device))
       thermostats.append(NestClimate(device))
   async_add_entities(thermostats)

@@ -7,10 +7,12 @@ if __package__:
   from .nest_camera import Camera
   from .nest_smoke_alarm import SmokeAlarm
   from .nest_thermostat import Thermostat
+  from .nest_stream import StreamingAPI
 else:
   from nest_camera import Camera
   from nest_smoke_alarm import SmokeAlarm
   from nest_thermostat import Thermostat
+  from nest_stream import StreamingAPI
 
 _USER_AGENT = ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) '
                'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -43,6 +45,9 @@ class API(object):
     self._update_lock = threading.Lock()
     self._last_update = None
     self._last_update_ret = False
+
+    # Streaming API.
+    self._streaming_api = StreamingAPI(self)
 
   def _stream(self, url, data, headers):
     with self._request_lock:
@@ -223,6 +228,9 @@ class API(object):
         device.update_from_json(values)
         devices.append(device)
 
+      # Streaming devices are handled separately.
+      devices.extend(self._streaming_api.list_devices())
+
       self._devices = devices
       self._logging.info('Devices listed and updated.')
       self._last_update = datetime.now().timestamp()
@@ -287,6 +295,12 @@ class API(object):
           self._logging.warning('New devices found (but not updated, restart is needed).')
           continue
         devices[serial_number].update_from_json(values)
+
+      # Streaming devices are handled separately.
+      if not self._streaming_api.update():
+        self._logging.error('Unable to update streaming devices.')
+        self._last_update_ret = False
+        return False
 
       self._logging.info('Devices updated.')
       self._last_update_ret = True
