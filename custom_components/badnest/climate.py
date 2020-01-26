@@ -25,7 +25,7 @@ from homeassistant.const import (
 )
 
 from .const import DOMAIN
-from .nest_thermostat import (
+from .nest import (
     Thermostat,
     HVACAction,
     HVACMode,

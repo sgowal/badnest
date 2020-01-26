@@ -10,7 +10,7 @@ from homeassistant.const import (
 from homeassistant.helpers.entity import Entity
 
 from .const import DOMAIN
-from .nest_thermostat import (
+from .nest import (
     Thermostat,
     TemperatureUnit,
 )

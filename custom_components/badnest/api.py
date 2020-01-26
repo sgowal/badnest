@@ -1,10 +1,10 @@
-from .nest import Nest
+from .nest import API
 
 
 class NestAPI(object):
 
   def __init__(self, issue_token, cookie):
-    self._api = Nest(issue_token, cookie)
+    self._api = API(issue_token, cookie)
 
   def initial_login(self):
     # Try to logging a few times before giving up.

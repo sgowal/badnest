@@ -4,7 +4,7 @@ from homeassistant.components.camera import (
 )
 
 from .const import DOMAIN
-from .nest_camera import Camera as LocalCamera
+from .nest import Camera as LocalCamera
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):

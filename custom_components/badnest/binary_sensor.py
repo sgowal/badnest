@@ -10,7 +10,7 @@ from homeassistant.components.binary_sensor import (
 )
 
 from .const import DOMAIN
-from .nest_smoke_alarm import (
+from .nest import (
     SmokeAlarm,
     COAlarmState,
     HeatAlarmState,
