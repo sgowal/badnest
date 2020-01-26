@@ -1,0 +1,184 @@
+// protoc --python_out .. nest.proto
+
+syntax = "proto3";
+
+package nest;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+// StreamBody.
+
+message Status {
+  int32 code = 1;
+  string message = 2;
+  repeated google.protobuf.Any details = 3;
+}
+
+message StreamBody {
+  repeated bytes message = 1;
+  Status status = 2;
+  repeated bytes noop = 15;
+}
+
+// Observe request.
+
+message ObserveRequest {
+  repeated int32 state_types_list = 1;
+  repeated TraitTypeObserveParams trait_type_params = 3;
+}
+
+message TraitTypeObserveParams {
+  string trait_type = 1;
+}
+
+// Observe response.
+
+message ObserveResponse {
+  repeated TraitState trait_states = 3;
+  google.protobuf.Timestamp current_time = 5;
+}
+
+// Traits (generic).
+
+message TraitState {
+  TraitId trait_id = 1;
+  Patch patch = 3;
+}
+
+message TraitId {
+  string resource_id = 1;
+  string trait_label = 2;
+}
+
+message Patch {
+  google.protobuf.Any values = 1;
+}
+
+// Device information.
+
+message DeviceInfoTrait {
+  string url = 2;
+  string type = 3;
+
+  message Location {
+    string name = 1;
+  }
+  Location location = 4;
+
+  string uuid = 10;
+}
+
+// Location information.
+
+message LocatedAnnotationsTrait {
+  message WhereItem {
+    google.protobuf.StringValue resource_id = 1;
+    google.protobuf.StringValue label = 2;
+  }
+  map<uint32, WhereItem> predefined_wheres_map = 1;
+  map<uint32, WhereItem> custom_wheres_map = 2;
+}
+
+message DeviceLocatedSettingsTrait {
+  google.protobuf.StringValue where_annotation_rid = 2;
+}
+
+// Sensors.
+
+message TemperatureTrait {
+  message TemperatureSample {
+    google.protobuf.FloatValue temperature = 1;
+  }
+  TemperatureSample temperature_value = 1;
+}
+
+message HumidityTrait {
+  message HumiditySample {
+    google.protobuf.FloatValue humidity = 1;
+  }
+  HumiditySample humidity_value = 1;
+}
+
+// HVAC.
+
+message HvacControl {
+  message Temperature {
+    float value = 1;
+  }
+  message TemperatureThreshold {
+    Temperature value = 1;
+    bool enabled = 2;
+  }
+}
+
+message SetPointScheduleSettingsTrait {
+  enum SetPointScheduleType {
+    SET_POINT_SCHEDULE_TYPE_UNSPECIFIED = 0;
+    SET_POINT_SCHEDULE_TYPE_HEAT = 1;
+    SET_POINT_SCHEDULE_TYPE_COOL = 2;
+    SET_POINT_SCHEDULE_TYPE_RANGE = 3;
+  }
+
+  message TemperatureSetPoint {
+    SetPointScheduleType setpoint_type = 1;
+    HvacControl.Temperature heating_target = 4;
+    HvacControl.Temperature cooling_target = 5;
+  }
+
+  string name = 1;
+  SetPointScheduleType type = 2;
+}
+
+message TargetTemperatureSettingsTrait {
+    SetPointScheduleSettingsTrait.TemperatureSetPoint target_temperature = 1;
+    google.protobuf.BoolValue enabled = 2;
+}
+
+message EcoModeStateTrait {
+  enum EcoMode {
+    ECO_MODE_UNSPECIFIED = 0;
+    ECO_MODE_INACTIVE = 1;
+    ECO_MODE_MANUAL_ECO = 2;
+    ECO_MODE_AUTO_ECO = 3;
+  }
+  enum EcoModeChangeReason {
+    ECO_MODE_CHANGE_REASON_UNSPECIFIED = 0;
+    ECO_MODE_CHANGE_REASON_MANUAL = 1;
+    ECO_MODE_CHANGE_REASON_STRUCTURE_MODE = 2;
+    ECO_MODE_CHANGE_REASON_OCCUPANCY = 3;
+    ECO_MODE_CHANGE_REASON_TEMPERATURE = 4;
+    ECO_MODE_CHANGE_REASON_FEATURE_ENABLE = 5;
+  }
+
+  EcoMode eco_mode = 1;
+  EcoModeChangeReason eco_mode_change_reason = 2;
+}
+
+// Update.
+
+message BatchUpdateRequest {
+  repeated TraitOperationList operations = 1;
+}
+
+message TraitOperationList {
+  TraitId trait_id = 1;
+  google.protobuf.Any patch = 2;
+}
+
+message BatchUpdateResponse {
+  message Message {
+    TraitId trait_id = 1;
+  }
+  message Success {
+    Message message = 1;
+  }
+  Success success = 1;
+
+  message Error {
+    int32 code = 1;
+    string message = 2;
+  }
+  Error error = 2;
+}
