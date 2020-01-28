@@ -64,6 +64,14 @@ _UPDATE_TRAITS = {
     'nest.trait.hvac.EcoModeStateTrait': EcoModeStateTrait,
 }
 
+# Testing.
+_ASYNC_UPDATE_TRAITS = {
+    'nest.trait.sensor.TemperatureTrait': TemperatureTrait,
+    'nest.trait.sensor.HumidityTrait': HumidityTrait,
+    'nest.trait.hvac.TargetTemperatureSettingsTrait': TargetTemperatureSettingsTrait,
+    'nest.trait.hvac.EcoModeStateTrait': EcoModeStateTrait,
+}
+
 _DEVICES = {
     'agateheatlink': HeatLink,
     'agatedisplay': ThermostatE,
@@ -141,6 +149,55 @@ class StreamingAPI(object):
 
       self._devices = [d for d in devices.values() if d.ready]
       return self._devices
+
+  async def async_update(self):
+    # TODO: Provide asynchronous update.
+    headers = {
+        'Origin': 'https://home.nest.com',
+        'Referer': 'https://home.nest.com/',
+        'Content-Type': 'application/x-protobuf',
+        'X-Accept-Content-Transfer-Encoding': 'base64',
+        'X-Accept-Response-Streaming': 'true',
+        'request-id': str(uuid.uuid1()),
+        'X-nl-webapp-version': 'NlAppSDKVersion/8.15.0 NlSchemaVersion/2.1.20-87-gce5742894',
+        'Sec-Fetch-Mode': 'cors',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36',
+    }
+    headers.update(self._backend._authorization_headers)
+
+    request = ObserveRequest()
+    request.state_types_list.extend([2, 1])
+    for trait_type in _ASYNC_UPDATE_TRAITS:
+      params = request.trait_type_params.add()
+      params.trait_type = trait_type
+
+    # Do not timeout.
+    r = self._backend._stream(_URL, data=request.SerializeToString(), headers=headers, timeout=None)
+    if r is None:
+      self._logging.error('Unable to list streaming devices.')
+      return
+
+    devices = dict(('DEVICE_' + v.unique_id, v) for v in self._devices)
+    try:
+      for c in r.iter_content(chunk_size=None):
+        if not c:
+          continue
+        decoded_bytes = base64.standard_b64decode(c)
+        proto = StreamBody()
+        proto.ParseFromString(decoded_bytes)
+        response = ObserveResponse()
+        for message in proto.message:
+          response.ParseFromString(message)
+          protos = process_response(response)
+
+          for device, label, proto in protos:
+            if device in devices:
+              devices[device].update_from_proto(label, proto)
+
+        self.logging.debug('Async update debug: {}'.format(devices))
+    except requests.exceptions.ConnectionError:
+      self.logging.info('Communication error.')
+    self.logging.info('Async update finished.')
 
   def update(self):
     with self._update_lock:
@@ -220,7 +277,7 @@ def process_response(message):
 
 if __name__ == '__main__':
   import logging
-  logging.basicConfig(level=logging.INFO)
+  logging.basicConfig(level=logging.DEBUG)
 
   import importlib.util
   spec = importlib.util.spec_from_file_location('module.name', 'secret.py')
@@ -240,17 +297,21 @@ if __name__ == '__main__':
   thermostat = [d for d in devices if isinstance(d, ThermostatE)][0]
   print(thermostat)
 
-  if thermostat.set_temperature(19.5):
-    print('Success changing temperature.')
-  else:
-    print('Error changing temperature.')
+  # if thermostat.set_temperature(19.5):
+  #   print('Success changing temperature.')
+  # else:
+  #   print('Error changing temperature.')
 
-  if thermostat.set_hvac_mode(HVACMode.HEAT):
-    print('Success changing mode.')
-  else:
-    print('Error changing mode.')
+  # if thermostat.set_hvac_mode(HVACMode.HEAT):
+  #   print('Success changing mode.')
+  # else:
+  #   print('Error changing mode.')
 
   if stream_api.update():
     print('Update successful:', devices)
   else:
     print('Update failed')
+
+  # Testing async updates.
+  import asyncio
+  asyncio.run(stream_api.async_update())

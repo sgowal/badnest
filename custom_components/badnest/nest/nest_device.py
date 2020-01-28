@@ -107,7 +107,6 @@ class StreamingDevice(Device):
         if v.resource_id.value == rid:
           self._name = v.label.value
           break
-    print('Found name:', self.unique_id, self._name)
 
   def fixit(self):
     with self._properties_lock:

@@ -49,10 +49,10 @@ class API(object):
     # Streaming API.
     self._streaming_api = StreamingAPI(self)
 
-  def _stream(self, url, data, headers):
+  def _stream(self, url, data, headers, timeout=2):
     with self._request_lock:
       # TODO: We likely need to catch exceptions here (e.g., when logged out).
-      return self._session.post(url, data=data, headers=headers, stream=True, timeout=2)
+      return self._session.post(url, data=data, headers=headers, stream=True, timeout=timeout)
 
   def _fetch_and_verify(self, url, headers, data=None, json=None, params=None, use_get=True, ignore_status_code=(), autologin=True):
     try:
@@ -306,9 +306,13 @@ class API(object):
       self._last_update_ret = True
       return True
 
+  async def async_update(self):
+    """Runs an infinite loop that updates streaming devices."""
+    return await self._streaming_api.async_update()
+
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO)
+  logging.basicConfig(level=logging.DEBUG)
 
   import importlib.util
   spec = importlib.util.spec_from_file_location('module.name', 'secret.py')
@@ -325,3 +329,7 @@ if __name__ == '__main__':
 
   nest.update()
   print(devices)
+
+  # Testing async updates.
+  import asyncio
+  asyncio.run(nest.async_update())

@@ -8,8 +8,12 @@ A Nest integration that uses the Nest Web API (after Works with Nest was shut do
 - Doesn't use the now defunct Works with Nest API
 - Works with migrated/new accounts via Google auth
 - Nest Protect support
-- Nest Thermostat support
+- Nest Thermostat support (including European Thermostat E models)
 - Nest Camera support
+
+### Missing features
+
+- Streaming API and asynchronous updates (at the moment, sensors are updated every minute).
 
 ## Configuration
 
@@ -49,7 +53,9 @@ switch:
   - platform: badnest
 ```
 
-The values of `"issue_token"` and `"cookie"` are specific to your Google Account. To get them, follow these steps (only needs to be done once, as long as you stay logged into your Google Account).
+The values of `"issue_token"` and `"cookie"` are specific to your Google Account.
+To get them, follow these steps (only needs to be done once, as long as you stay logged into your Google Account).
+**It is recommended that you create another account (that you invite to your home), as this will reduce the risk of hacking onto your original Google account.**
 
 1. Open a Chrome browser tab in Incognito Mode (or clear your cache).
 2. Open Developer Tools (View/Developer/Developer Tools).
@@ -61,3 +67,9 @@ The values of `"issue_token"` and `"cookie"` are specific to your Google Account
 8. In the 'Filter' box, enter `oauth2/iframe`
 9. Several network calls will appear in the Dev Tools window. Click on the last `iframe` call.
 10. In the Headers tab, under Request Headers, copy the entire `cookie` (beginning `OCAK=...` - **include the whole string which is several lines long and has many field/value pairs** - do not include the `cookie:` name). This is your `"cookie"` in `configuration.yaml`.
+
+
+## Acknowledgements
+
+- https://github.com/Humpheh/nest-observe
+- https://github.com/chrisjshull/homebridge-nest#using-a-google-account
