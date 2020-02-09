@@ -1,7 +1,10 @@
 """API that streams the newer protocol buffers from Nest."""
 
 import base64
+import binascii
 import collections
+import google.protobuf.message
+import httpx
 import requests
 import threading
 import uuid
@@ -151,7 +154,6 @@ class StreamingAPI(object):
       return self._devices
 
   async def async_update(self):
-    # TODO: Provide asynchronous update.
     headers = {
         'Origin': 'https://home.nest.com',
         'Referer': 'https://home.nest.com/',
@@ -171,20 +173,25 @@ class StreamingAPI(object):
       params = request.trait_type_params.add()
       params.trait_type = trait_type
 
+    client = httpx.AsyncClient(headers=headers)
     # Do not timeout.
-    r = self._backend._stream(_URL, data=request.SerializeToString(), headers=headers, timeout=None)
-    if r is None:
-      self._logging.error('Unable to list streaming devices.')
-      return
-
     devices = dict(('DEVICE_' + v.unique_id, v) for v in self._devices)
-    try:
-      for c in r.iter_content(chunk_size=None):
+    async with client.stream('POST', _URL, data=request.SerializeToString(), timeout=None) as response:
+      current_chunk = b''
+      async for c in response.aiter_bytes():
+        current_chunk += c
         if not c:
           continue
-        decoded_bytes = base64.standard_b64decode(c)
+        try:
+          decoded_bytes = base64.standard_b64decode(current_chunk)
+        except binascii.Error:
+          continue
         proto = StreamBody()
-        proto.ParseFromString(decoded_bytes)
+        try:
+          proto.ParseFromString(decoded_bytes)
+        except google.protobuf.message.DecodeError:
+          continue
+        current_chunk = b''
         response = ObserveResponse()
         for message in proto.message:
           response.ParseFromString(message)
@@ -193,11 +200,7 @@ class StreamingAPI(object):
           for device, label, proto in protos:
             if device in devices:
               devices[device].update_from_proto(label, proto)
-
-        self.logging.debug('Async update debug: {}'.format(devices))
-    except requests.exceptions.ConnectionError:
-      self.logging.info('Communication error.')
-    self.logging.info('Async update finished.')
+    self.logging.info('Async update finished (needs to be restarted).')
 
   def update(self):
     with self._update_lock:
@@ -294,24 +297,12 @@ if __name__ == '__main__':
   devices = stream_api.list_devices()
   print('Found devices:', devices)
 
-  thermostat = [d for d in devices if isinstance(d, ThermostatE)][0]
-  print(thermostat)
-
-  # if thermostat.set_temperature(19.5):
-  #   print('Success changing temperature.')
-  # else:
-  #   print('Error changing temperature.')
-
-  # if thermostat.set_hvac_mode(HVACMode.HEAT):
-  #   print('Success changing mode.')
-  # else:
-  #   print('Error changing mode.')
-
-  if stream_api.update():
-    print('Update successful:', devices)
-  else:
-    print('Update failed')
-
   # Testing async updates.
   import asyncio
-  asyncio.run(stream_api.async_update())
+  async def count():
+    for i in range(10):
+      print('Iteration:', i)
+      await asyncio.sleep(1)
+  async def async_main():
+    await asyncio.gather(stream_api.async_update(), count())
+  asyncio.run(async_main())

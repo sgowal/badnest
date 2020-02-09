@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 import logging
 import requests
@@ -236,7 +237,7 @@ class API(object):
       self._last_update = datetime.now().timestamp()
       return devices
 
-  def update(self):
+  def update(self, exclude_streaming_devices=False):
     with self._update_lock:
       now = datetime.now().timestamp()
       if self._devices is None:
@@ -297,10 +298,11 @@ class API(object):
         devices[serial_number].update_from_json(values)
 
       # Streaming devices are handled separately.
-      if not self._streaming_api.update():
-        self._logging.error('Unable to update streaming devices.')
-        self._last_update_ret = False
-        return False
+      if not exclude_streaming_devices:
+        if not self._streaming_api.update():
+          self._logging.error('Unable to update streaming devices.')
+          self._last_update_ret = False
+          return False
 
       self._logging.info('Devices updated.')
       self._last_update_ret = True
@@ -310,6 +312,13 @@ class API(object):
     """Runs an infinite loop that updates streaming devices."""
     return await self._streaming_api.async_update()
 
+  async def loop(self, interval=30):
+    """Runs indefintely, updating non-streaming devices at a fixed interval."""
+    async def sync_update():
+      while True:
+        nest.update(exclude_streaming_devices=True)
+        await asyncio.sleep(interval)
+    await asyncio.gather(self.async_update(), sync_update())
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.DEBUG)
@@ -322,14 +331,11 @@ if __name__ == '__main__':
   nest = API(secret.ISSUE_TOKEN, secret.COOKIE)
   nest.login()
   devices = nest.list_devices()
-  print(devices)
 
-  nest.update()
-  print(devices)
-
-  nest.update()
-  print(devices)
-
-  # Testing async updates.
-  import asyncio
-  asyncio.run(nest.async_update())
+  async def print_devices():
+    while True:
+      print(devices)
+      await asyncio.sleep(30)
+  async def async_main():
+    await asyncio.gather(nest.loop(), print_devices())
+  asyncio.run(async_main())
